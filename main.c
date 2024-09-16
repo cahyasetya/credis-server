@@ -1,3 +1,4 @@
+#include "../credis-common/include/credis_common.h"
 #include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -93,21 +94,6 @@ static void handle_client(int connfd) {
     const char *response = "Hello, client!\n";
     write(connfd, response, strlen(response));
     logger("INFO", "Sent response to client");
-}
-
-void logger(const char* level, const char* format, ...) {
-    time_t now = time(NULL);
-    char time_str[20];
-    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&now));
-
-    va_list args;
-    va_start(args, format);
-
-    printf("[%s] %s: ", time_str, level);
-    vprintf(format, args);
-    printf("\n");
-
-    va_end(args);
 }
 
 void sigint_handler(int sig_num) {
