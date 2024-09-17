@@ -1,33 +1,40 @@
 #include "../credis-common/include/credis_common.h"
-#include <stdio.h>
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <stdbool.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <time.h>
-#include <stdarg.h>
-#include <string.h>
-#include <errno.h>
-#include <signal.h>
+#include <csignal>
+#include <vector>
+#include <algorithm>
 
 #define PORT 1234
 #define BUFFER_SIZE 64
 #define MAX_REQUEST_SIZE 4096
 #define MAX_RESPONSE_SIZE 1024
 
+enum class State {
+    REQ = 0,
+    RES = 1,
+    END = 2,
+};
+
+struct Conn {
+    int fd = -1;
+    State state = State::REQ;
+};
+
 // Function prototypes
-struct sockaddr_in create_addr(uint16_t port);
+static sockaddr_in create_addr(uint16_t port);
 static void handle_client(int connfd);
-void logger(const char* level, const char* format, ...);
-void sigint_handler(int sig_num);
+static void sigint_handler(int sig_num);
 static int32_t handle_one_request(int connfd);
 static int32_t handle_request(int connfd);
 static int32_t send_response(int connfd);
-int32_t write_full(int fd, const char *buf, size_t n);
 
 // Global variables
-int server_fd;
+static int server_fd;
 
 int main() {
     // Set up signal handler
@@ -102,14 +109,14 @@ static int32_t handle_request(int connfd) {
     }
 
     uint32_t len;
-    memcpy(&len, buf, 4);
+    std::memcpy(&len, buf, 4);
     if (len > MAX_REQUEST_SIZE) {
         logger("ERROR", "Request too long: %u", len);
         return -1;
     }
 
     char request[MAX_REQUEST_SIZE + 1];
-    err = read_full(connfd, request, len);
+    err = read_full(connfd, request, static_cast<std::size_t>(len));
     if (err) {
         logger("ERROR", "read content: %s", strerror(errno));
         return err;
@@ -123,13 +130,13 @@ static int32_t handle_request(int connfd) {
 static int32_t send_response(int connfd) {
     const char reply[] = "world";
     char wbuf[4 + sizeof(reply)];
-    uint32_t len = (uint32_t)strlen(reply);
-    memcpy(wbuf, &len, 4);
-    memcpy(&wbuf[4], reply, len);
+    uint32_t len = static_cast<uint32_t>(std::strlen(reply));
+    std::memcpy(wbuf, &len, 4);
+    std::memcpy(&wbuf[4], reply, len);
     return write_full(connfd, wbuf, 4 + len);
 }
 
-struct sockaddr_in create_addr(uint16_t port) {
+static sockaddr_in create_addr(uint16_t port) {
     struct sockaddr_in addr = {0};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
@@ -147,12 +154,12 @@ static void handle_client(int connfd) {
     logger("INFO", "Client says: %s", rbuf);
 
     const char *response = "Hello, client!\n";
-    write(connfd, response, strlen(response));
+    write(connfd, response, std::strlen(response));
     logger("INFO", "Sent response to client");
 }
 
-void sigint_handler(int sig_num) {
+static void sigint_handler(int sig_num) {
     logger("INFO", "Shutting down server...");
     close(server_fd);
-    exit(0);
+    std::exit(0);
 }
